@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Player Stack Manager</title>
+  <title>Poker With Friends</title>
   <link rel="stylesheet" href="./player_stack_manager.css" />
 </head>
 <body>
-  <h1>Player Stack Manager</h1>
+  <h1>Poker With Friends</h1>
   <button id="themeToggleButton" class="theme-toggle" type="button" aria-label="Switch to light theme">☀ Light mode</button>
 
   <section>
     <div class="toolbar">
       <h2>Players</h2>
-      <button id="toggleChipsButton" type="button">Show total_chips</button>
+      <button id="toggleChipsButton" type="button">Show total chips</button>
     </div>
 
     <table>
@@ -21,7 +21,7 @@
         <tr>
           <th>name</th>
           <th>stack</th>
-          <th id="totalChipsHeader" class="hidden">total_chips</th>
+          <th id="totalChipsHeader" class="hidden">total chips</th>
         </tr>
       </thead>
       <tbody id="playersTableBody"></tbody>
@@ -54,10 +54,10 @@
   <section>
     <h2>Borrowing</h2>
     <div class="form-row">
-      <label for="borrowerSelect">borrower:</label>
+      <label for="borrowerSelect">Borrower:</label>
       <select id="borrowerSelect"></select>
 
-      <label for="lenderSelect">lender:</label>
+      <label for="lenderSelect">Lender:</label>
       <select id="lenderSelect"></select>
 
       <button id="borrowButton" type="button">Borrow</button>

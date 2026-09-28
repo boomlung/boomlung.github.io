@@ -198,12 +198,12 @@ input:disabled {
   opacity: 0.45;
 }
 
-#toggleChipsButton,
-#toggleMessagesButton {
+/* #toggleChipsButton,
+#toggleMessageButton {
   border-color: rgba(120, 169, 216, 0.48);
   color: var(--accent-strong);
   background: var(--accent-dark);
-}
+} */
 
 #playerActionButton,
 #borrowButton {
@@ -407,12 +407,12 @@ body[data-theme="light"] button:hover:not(:disabled) {
   background: #e3ebf3;
 }
 
-body[data-theme="light"] #toggleChipsButton,
-body[data-theme="light"] #toggleMessagesButton {
+/* body[data-theme="light"] #toggleChipsButton,
+body[data-theme="light"] #toggleMessageButton {
   border-color: rgba(71, 124, 174, 0.48);
   color: var(--accent-strong);
   background: var(--accent-dark);
-}
+} */
 
 body[data-theme="light"] #playerActionButton,
 body[data-theme="light"] #borrowButton {

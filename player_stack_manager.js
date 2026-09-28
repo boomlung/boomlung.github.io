@@ -91,7 +91,7 @@ function showMessage(text, isSuccess = false) {
 function renderMessages() {
   const visibleMessages = showAllMessages
     ? messages
-    : messages.slice(-10);
+    : messages.slice(-6); // Show only the last 6 messages when collapsed.
 
   message.innerHTML = '';
 
@@ -217,7 +217,7 @@ function renderTable() {
       chipsInput.min = '0';
       chipsInput.step = '1';
       chipsInput.value = player.total_chips;
-      chipsInput.setAttribute('aria-label', `total_chips for ${player.name}`);
+      chipsInput.setAttribute('aria-label', `total chips for ${player.name}`);
 
       // Save total_chips when the user leaves the field or presses Enter.
       chipsInput.addEventListener('change', () => {
@@ -225,12 +225,12 @@ function renderTable() {
 
         if (!Number.isInteger(value) || value < 0) {
           chipsInput.value = player.total_chips;
-          showMessage('total_chips must be a non-negative whole number.');
+          showMessage('total chips must be a non-negative whole number.');
           return;
         }
         saveStateForUndo();
         player.total_chips = value;
-        showMessage(`Updated total_chips for ${player.name}.`, true);
+        showMessage(`Updated total chips for ${player.name}.`, true);
       });
 
       chipsCell.appendChild(chipsInput);
@@ -287,8 +287,8 @@ function updateActionFields() {
 toggleChipsButton.addEventListener('click', () => {
   chipsVisible = !chipsVisible;
   toggleChipsButton.textContent = chipsVisible
-    ? 'Hide total_chips'
-    : 'Show total_chips';
+    ? 'Hide total chips'
+    : 'Show total chips';
   renderTable();
 });
 
