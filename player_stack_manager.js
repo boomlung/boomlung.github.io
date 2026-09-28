@@ -23,6 +23,8 @@ let chipsVisible = false;
 let showAllMessages = false;
 let restoringHistory = false;
 
+const themeToggleButton = document.getElementById('themeToggleButton');
+
 const tableBody = document.getElementById('playersTableBody');
 const totalChipsHeader = document.getElementById('totalChipsHeader');
 const toggleChipsButton = document.getElementById('toggleChipsButton');
@@ -39,6 +41,41 @@ const playerActionButton = document.getElementById('playerActionButton');
 const borrowerSelect = document.getElementById('borrowerSelect');
 const lenderSelect = document.getElementById('lenderSelect');
 const borrowButton = document.getElementById('borrowButton');
+
+const savedTheme = localStorage.getItem('player-stack-theme');
+
+if (savedTheme === 'light') {
+  document.body.dataset.theme = 'light';
+}
+
+function updateThemeToggleButton() {
+  const isLightTheme = document.body.dataset.theme === 'light';
+
+  themeToggleButton.textContent = isLightTheme
+    ? '◐ Dark mode'
+    : '☀ Light mode';
+
+  themeToggleButton.setAttribute(
+    'aria-label',
+    isLightTheme
+      ? 'Switch to dark theme'
+      : 'Switch to light theme'
+  );
+}
+
+themeToggleButton.addEventListener('click', () => {
+  const isLightTheme = document.body.dataset.theme === 'light';
+
+  if (isLightTheme) {
+    delete document.body.dataset.theme;
+    localStorage.setItem('player-stack-theme', 'dark');
+  } else {
+    document.body.dataset.theme = 'light';
+    localStorage.setItem('player-stack-theme', 'light');
+  }
+
+  updateThemeToggleButton();
+});
 
 function showMessage(text, isSuccess = false) {
   // Store every generated message, including its visual status.
@@ -64,7 +101,7 @@ function renderMessages() {
     const time = entry.timestamp.toLocaleTimeString();
     messageItem.textContent = `[${time}] ${entry.text}`;
     messageItem.className = entry.isSuccess ? 'success' : '';
-
+const themeToggleButton = document.getElementById('themeToggleButton');
     message.appendChild(messageItem);
   });
 }
@@ -113,7 +150,7 @@ function undo() {
   if (undoStack.length === 0) {
     showMessage('There is nothing to undo.');
     return;
-  }
+  }const themeToggleButton = document.getElementById('themeToggleButton');
 
   // Save the current state so it can be restored with redo.
   redoStack.push(clonePlayers());
@@ -269,7 +306,7 @@ redoButton.addEventListener('click', redo);
 playerAction.addEventListener('change', () => {
   updateActionFields();
   renderPlayerControls();
-  showMessage('');
+  // showMessage('');
 });
 
 playerActionButton.addEventListener('click', () => {
@@ -350,3 +387,4 @@ borrowButton.addEventListener('click', () => {
 updateActionFields();
 render();
 updateHistoryButtons();
+updateThemeToggleButton()

@@ -8,6 +8,7 @@
 </head>
 <body>
   <h1>Player Stack Manager</h1>
+  <button id="themeToggleButton" class="theme-toggle" type="button" aria-label="Switch to light theme">☀ Light mode</button>
 
   <section>
     <div class="toolbar">
@@ -25,14 +26,16 @@
       </thead>
       <tbody id="playersTableBody"></tbody>
     </table>
+    
+    <div id="message" class="message" aria-live="polite"></div>
+    <button id="toggleMessageButton" type="button">Expand</button>
+  </section>
+  <section>
     <div class="history-controls">
       <button id="undoButton" type="button" disabled>Undo</button>
       <button id="redoButton" type="button" disabled>Redo</button>
     </div>
-    <div id="message" class="message" aria-live="polite"></div>
-    <button id="toggleMessageButton" type="button">Expand</button>
   </section>
-
   <section>
     <h2>Add / Removal of Player</h2>
     <div class="form-row">
