@@ -22,6 +22,8 @@ const redoStack = [];
 let chipsVisible = false;
 let showAllMessages = false;
 let restoringHistory = false;
+let resetConfirm = false;
+let confirmTimeoutSeconds = 3 // 3 seconds to confirm reset
 
 const themeToggleButton = document.getElementById('themeToggleButton');
 
@@ -29,7 +31,10 @@ const tableBody = document.getElementById('playersTableBody');
 const totalChipsHeader = document.getElementById('totalChipsHeader');
 const toggleChipsButton = document.getElementById('toggleChipsButton');
 const message = document.getElementById('message');
+
 const toggleMessageButton = document.getElementById('toggleMessageButton');
+const resetButton = document.getElementById('resetButton');
+
 const undoButton = document.getElementById('undoButton');
 const redoButton = document.getElementById('redoButton');
 
@@ -91,7 +96,7 @@ function showMessage(text, isSuccess = false) {
 function renderMessages() {
   const visibleMessages = showAllMessages
     ? messages
-    : messages.slice(-6); // Show only the last 6 messages when collapsed.
+    : messages.slice(-3); // Show only the last 3 messages when collapsed.
 
   message.innerHTML = '';
 
@@ -101,7 +106,6 @@ function renderMessages() {
     const time = entry.timestamp.toLocaleTimeString();
     messageItem.textContent = `[${time}] ${entry.text}`;
     messageItem.className = entry.isSuccess ? 'success' : '';
-const themeToggleButton = document.getElementById('themeToggleButton');
     message.appendChild(messageItem);
   });
 }
@@ -295,10 +299,43 @@ toggleChipsButton.addEventListener('click', () => {
 toggleMessageButton.addEventListener('click', () => {
   showAllMessages = !showAllMessages;
   toggleMessageButton.textContent = showAllMessages
-    ? 'Collapse'
-    : 'Expand';
+    ? 'Close'
+    : 'Show All';
    renderMessages();
 });
+
+resetButton.addEventListener('click', () => {
+  // Check if the button is already in the confirmation state
+  if (resetConfirm) {
+    resetButtonText();
+
+    saveStateForUndo();
+    players.length = 0;
+    showMessage('Game has been reset.', true);
+    render();
+  } else {
+    // First click: switch to confirmation state
+    let timeout = confirmTimeoutSeconds
+    resetConfirm = true;
+    resetButton.textContent = `Confirm Reset? (${timeout})`;
+
+    confirmInterval = setInterval(() => {
+      timeout--;
+      if (timeout > 0) {
+        resetButton.textContent = `Confirm Reset? (${timeout})`;
+      } else {
+        resetButtonText();
+      }
+    }, 1000);
+  }
+});
+
+function resetButtonText() {
+  clearInterval(confirmInterval);
+  confirmInterval = null;
+  resetButton.textContent = 'Reset Game';
+  resetConfirm = false;
+}
 
 undoButton.addEventListener('click', undo);
 redoButton.addEventListener('click', redo);
