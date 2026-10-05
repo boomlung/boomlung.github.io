@@ -12,12 +12,19 @@ class Player {
     this.stack = 1; // Every new player starts with one buy-in.
     this.total_chips = 0;
   }
+
+  static fromJSON(data) {
+    const p = new Player(data.name);
+    p.stack = data.stack;
+    p.total_chips = data.total_chips;
+    return p;
+  }
 }
 
-const players = [];
-const messages = [];
-const undoStack = [];
-const redoStack = [];
+let players = [];
+let messages = [];
+let undoStack = [];
+let redoStack = [];
 
 let chipsVisible = false;
 let showAllMessages = false;
@@ -34,7 +41,6 @@ const message = document.getElementById('message');
 
 const toggleMessageButton = document.getElementById('toggleMessageButton');
 const resetButton = document.getElementById('resetButton');
-
 const undoButton = document.getElementById('undoButton');
 const redoButton = document.getElementById('redoButton');
 
@@ -47,52 +53,7 @@ const borrowerSelect = document.getElementById('borrowerSelect');
 const lenderSelect = document.getElementById('lenderSelect');
 const borrowButton = document.getElementById('borrowButton');
 
-const savedTheme = localStorage.getItem('player-stack-theme');
-
-if (savedTheme === 'light') {
-  document.body.dataset.theme = 'light';
-}
-
-function updateThemeToggleButton() {
-  const isLightTheme = document.body.dataset.theme === 'light';
-
-  themeToggleButton.textContent = isLightTheme
-    ? '◐ Dark mode'
-    : '☀ Light mode';
-
-  themeToggleButton.setAttribute(
-    'aria-label',
-    isLightTheme
-      ? 'Switch to dark theme'
-      : 'Switch to light theme'
-  );
-}
-
-themeToggleButton.addEventListener('click', () => {
-  const isLightTheme = document.body.dataset.theme === 'light';
-
-  if (isLightTheme) {
-    delete document.body.dataset.theme;
-    localStorage.setItem('player-stack-theme', 'dark');
-  } else {
-    document.body.dataset.theme = 'light';
-    localStorage.setItem('player-stack-theme', 'light');
-  }
-
-  updateThemeToggleButton();
-});
-
-function showMessage(text, isSuccess = false) {
-  // Store every generated message, including its visual status.
-  messages.push({
-    text,
-    isSuccess,
-    timestamp: new Date()
-  });
-
-  renderMessages();
-}
-
+/* Message (History) */
 function renderMessages() {
   const visibleMessages = showAllMessages
     ? messages
@@ -109,6 +70,21 @@ function renderMessages() {
     message.appendChild(messageItem);
   });
 }
+function showMessage(text, isSuccess = false) {
+  // Store every generated message, including its visual status.
+  messages.push({
+    text,
+    isSuccess,
+    timestamp: new Date()
+  });
+
+  // Keep only the last 100 messages to prevent infinite growth
+  if (messages.length > 100) {
+    messages.shift(); // Removes the oldest message
+  }
+
+  renderMessages();
+}
 
 function findPlayer(name) {
   return players.find(player => player.name === name);
@@ -123,16 +99,56 @@ function clonePlayers() {
   }));
 }
 
-function saveStateForUndo() {
-  if (restoringHistory) {
-    return;
+// LocalForage section
+async function saveGameState() {
+  try {
+    await localforage.setItem('pokerGameState', {
+      players: clonePlayers(),
+      undoStack: undoStack,
+      redoStack: redoStack,
+      messages: messages
+    });
+  } catch (error) {
+    console.error('Error saving game state:', error);
   }
+}
 
+async function loadGameState() {
+  try {
+    const savedState = await localforage.getItem('pokerGameState');
+    if (!savedState) return; // No saved state found.
+
+    players = (savedState.players || []).map(Player.fromJSON);
+    undoStack = savedState.undoStack || [];
+    redoStack = savedState.redoStack || [];
+    messages = (savedState.messages || []).map(msg => ({
+      text: msg.text,
+      isSuccess: msg.isSuccess,
+      timestamp: new Date(msg.timestamp)
+    }));
+  } catch (error) {
+    console.error('Error loading game state:', error);
+  }
+}
+
+async function resetGameState() {
+  try {
+    await localforage.removeItem('pokerGameState');
+    players.length = 0;
+    undoStack.length = 0;
+    redoStack.length = 0;
+    updateHistoryButtons();
+    render();
+  } catch (err) {
+    console.error('Failed to clear state:', err);
+  }
+}
+
+function saveStateForUndo() {
+  if (restoringHistory) return;
+  
   undoStack.push(clonePlayers());
-
-  // Once a new change is made, the old redo path is no longer valid.
-  redoStack.length = 0;
-
+  redoStack.length = 0; // Clear redo stack on new action
   updateHistoryButtons();
 }
 
@@ -140,11 +156,7 @@ function restorePlayers(snapshot) {
   players.length = 0;
 
   snapshot.forEach(savedPlayer => {
-    players.push({
-      name: savedPlayer.name,
-      stack: savedPlayer.stack,
-      total_chips: savedPlayer.total_chips
-    });
+    players.push(Player.fromJSON(savedPlayer));
   });
 
   render();
@@ -154,11 +166,10 @@ function undo() {
   if (undoStack.length === 0) {
     showMessage('There is nothing to undo.');
     return;
-  }const themeToggleButton = document.getElementById('themeToggleButton');
+  }
 
   // Save the current state so it can be restored with redo.
   redoStack.push(clonePlayers());
-
   const previousState = undoStack.pop();
 
   restoringHistory = true;
@@ -167,6 +178,7 @@ function undo() {
 
   showMessage('Undid the last change.', true);
   updateHistoryButtons();
+  saveGameState(); // Save the current state to localForage
 }
 
 function redo() {
@@ -177,7 +189,6 @@ function redo() {
 
   // Save the current state so it can be undone again.
   undoStack.push(clonePlayers());
-
   const nextState = redoStack.pop();
 
   restoringHistory = true;
@@ -186,6 +197,7 @@ function redo() {
 
   showMessage('Redid the change.', true);
   updateHistoryButtons();
+  saveGameState(); // Save the current state to localForage
 }
 
 function updateHistoryButtons() {
@@ -193,11 +205,7 @@ function updateHistoryButtons() {
   redoButton.disabled = redoStack.length === 0;
 }
 
-function render() {
-  renderTable();
-  renderPlayerControls();
-}
-
+// Updates the player table based on the current players and chips visibility.
 function renderTable() {
   tableBody.innerHTML = '';
   totalChipsHeader.classList.toggle('hidden', !chipsVisible);
@@ -235,6 +243,7 @@ function renderTable() {
         saveStateForUndo();
         player.total_chips = value;
         showMessage(`Updated total chips for ${player.name}.`, true);
+        saveGameState(); // Save the current state to localForage
       });
 
       chipsCell.appendChild(chipsInput);
@@ -245,6 +254,7 @@ function renderTable() {
   });
 }
 
+// Updates the player selection dropdowns based on the current players.
 function renderPlayerControls() {
   const currentRemovalValue = removePlayerSelect.value;
   const currentBorrowerValue = borrowerSelect.value;
@@ -281,6 +291,7 @@ function renderPlayerControls() {
   playerActionButton.disabled = playerAction.value === 'removal' && noPlayers;
 }
 
+// Updates the visibility of the player name input and removal dropdown based on the selected action.
 function updateActionFields() {
   const isAddMode = playerAction.value === 'add';
   playerNameInput.classList.toggle('hidden', !isAddMode);
@@ -288,13 +299,51 @@ function updateActionFields() {
   playerNameInput.required = isAddMode;
 }
 
-toggleChipsButton.addEventListener('click', () => {
+// Renders the player table and dropdowns. (Called after any change to the players array.)
+function render() {
+  renderTable();
+  renderPlayerControls();
+}
+
+function updateThemeToggleButton() {
+  const isLightTheme = document.body.dataset.theme === 'light';
+
+  themeToggleButton.textContent = isLightTheme
+    ? '◐ Dark mode'
+    : '☀ Light mode';
+
+  themeToggleButton.setAttribute(
+    'aria-label',
+    isLightTheme
+      ? 'Switch to dark theme'
+      : 'Switch to light theme'
+  );
+}
+
+function toggleTheme() {
+  const isLightTheme = document.body.dataset.theme === 'light';
+
+  if (isLightTheme) {
+    delete document.body.dataset.theme;
+    localStorage.setItem('player-stack-theme', 'dark');
+  } else {
+    document.body.dataset.theme = 'light';
+    localStorage.setItem('player-stack-theme', 'light');
+  }
+
+  updateThemeToggleButton();
+}
+
+function toggleChipsVisibility() {
   chipsVisible = !chipsVisible;
   toggleChipsButton.textContent = chipsVisible
     ? 'Hide total chips'
     : 'Show total chips';
   renderTable();
-});
+}
+
+themeToggleButton.addEventListener('click', toggleTheme);
+toggleChipsButton.addEventListener('click', toggleChipsVisibility);
 
 toggleMessageButton.addEventListener('click', () => {
   showAllMessages = !showAllMessages;
@@ -304,12 +353,18 @@ toggleMessageButton.addEventListener('click', () => {
    renderMessages();
 });
 
+function resetButtonText() {
+  clearInterval(confirmInterval);
+  confirmInterval = null;
+  resetButton.textContent = 'Reset Game';
+  resetConfirm = false;
+}
+
 resetButton.addEventListener('click', () => {
   // Check if the button is already in the confirmation state
   if (resetConfirm) {
     resetButtonText();
-
-    saveStateForUndo();
+    resetGameState(); // Clear the saved state from localForage
     players.length = 0;
     showMessage('Game has been reset.', true);
     render();
@@ -330,20 +385,12 @@ resetButton.addEventListener('click', () => {
   }
 });
 
-function resetButtonText() {
-  clearInterval(confirmInterval);
-  confirmInterval = null;
-  resetButton.textContent = 'Reset Game';
-  resetConfirm = false;
-}
-
 undoButton.addEventListener('click', undo);
 redoButton.addEventListener('click', redo);
 
 playerAction.addEventListener('change', () => {
   updateActionFields();
   renderPlayerControls();
-  // showMessage('');
 });
 
 playerActionButton.addEventListener('click', () => {
@@ -363,6 +410,7 @@ playerActionButton.addEventListener('click', () => {
     players.push(new Player(name));
     playerNameInput.value = '';
     showMessage(`Added ${name} with stack 1.`, true);
+    saveGameState(); // Save the current state to localForage
   } 
   else 
   {
@@ -377,6 +425,7 @@ playerActionButton.addEventListener('click', () => {
     saveStateForUndo();
     players.splice(index, 1);
     showMessage(`Removed ${name}.`, true);
+    saveGameState(); // Save the current state to localForage
   }
 
   render();
@@ -404,6 +453,7 @@ borrowButton.addEventListener('click', () => {
     saveStateForUndo();
     borrower.stack += 1;
     showMessage(`${borrower.name} borrowed 1 stack from the bank.`, true);
+    saveGameState(); // Save the current state to localForage
   } else {
     const lender = findPlayer(lenderName);
     if (!lender) {
@@ -415,13 +465,31 @@ borrowButton.addEventListener('click', () => {
     borrower.stack += 1;
     lender.stack -= 1;
     showMessage(`${borrower.name} borrowed 1 stack from ${lender.name}.`, true);
+    saveGameState(); // Save the current state to localForage
   }
 
   render();
 });
 
 // Initialize the interface with no players.
-updateActionFields();
-render();
-updateHistoryButtons();
-updateThemeToggleButton()
+function initialize() {
+  const savedTheme = localStorage.getItem('player-stack-theme');
+  if (savedTheme === 'light') {
+    document.body.dataset.theme = 'light';
+  }
+  updateThemeToggleButton();
+  renderMessages();
+  updateHistoryButtons();
+  updateActionFields();
+  render();
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadGameState();
+  console.log('Game state loaded from localForage.');
+  initialize();
+  console.log('Player Stack Manager initialized.');
+  // console.log('Current players:', players);
+});
+
+// console.log(typeof undoStack, typeof redoStack, typeof messages, typeof players);
