@@ -174,6 +174,7 @@ button {
   cursor: pointer;
   background: var(--panel-soft);
   box-shadow: 0 2px 0 rgba(0, 0, 0, 0.2);
+  vertical-align:top;
 }
 
 button:hover:not(:disabled) {
@@ -205,18 +206,135 @@ input:disabled {
   background: var(--accent-dark);
 } */
 
-#playerActionButton,
-#borrowButton {
+.blue-btn {
   border-color: rgba(153, 195, 235, 0.55);
   color: #10161d;
   background: var(--accent);
   font-weight: 750;
 }
 
-#playerActionButton:hover:not(:disabled),
-#borrowButton:hover:not(:disabled) {
+.blue-btn:hover:not(:disabled) {
   color: #0c1116;
   background: var(--accent-strong);
+}
+
+/*
+  Delete mode: red-themed bin toggle in the Players toolbar; while active,
+  every player row shows a "×" delete button in its last column.
+*/
+.delete-mode-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--danger);
+}
+
+.delete-mode-button:hover:not(:disabled) {
+  border-color: var(--danger);
+}
+
+.delete-mode-button.active {
+  border-color: rgba(226, 154, 154, 0.65);
+  color: #ffd9d9;
+  background: rgba(226, 154, 154, 0.18);
+}
+
+.delete-mode-button.active:hover:not(:disabled) {
+  border-color: var(--danger);
+  background: rgba(226, 154, 154, 0.26);
+}
+
+.delete-cell {
+  text-align: center;
+}
+
+.row-delete-btn {
+  width: 2.3rem;
+  min-height: 2.3rem;
+  padding: 0;
+  border-color: rgba(226, 154, 154, 0.4);
+  color: var(--danger);
+  font-size: 1.15em;
+  line-height: 1;
+}
+
+.row-delete-btn:hover:not(:disabled) {
+  border-color: var(--danger);
+  background: rgba(226, 154, 154, 0.16);
+}
+
+/*
+  Kebab ("meatballs") dropdown in the Players toolbar.
+*/
+.menu-container {
+  position: relative;
+}
+
+.kebab-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.kebab-dots {
+  display: flex;
+  gap: 3.5px;
+}
+
+.kebab-dots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--text);
+}
+
+.table-menu {
+  position: absolute;
+  top: calc(100% + 0.45rem);
+  right: 0;
+  z-index: 10;
+  min-width: 11.5rem;
+  padding: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel-soft);
+  box-shadow: var(--shadow);
+}
+
+#messageMenu {
+  min-width: 6rem;
+}
+
+.menu-item {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  width: 100%;
+  min-height: 2.35rem;
+  padding: 0.45rem 0.7rem;
+  border: 0;
+  border-radius: 8px;
+  text-align: left;
+  box-shadow: none;
+  background: transparent;
+}
+
+.menu-item:hover:not(:disabled) {
+  border-color: transparent;
+  background: rgba(120, 169, 216, 0.14);
+  transform: none;
+}
+
+.menu-check {
+  margin-left: auto;
+  width: 1em;
+  flex: none;
+  text-align: right;
+}
+
+.menu-item.checked .menu-check::before {
+  content: "\2713";
+  color: var(--accent-strong);
 }
 
 table {
@@ -224,17 +342,17 @@ table {
   margin-top: 0.5rem;
   margin-bottom: 1rem;
   overflow: hidden;
-  border: 1px solid var(--border);
+  border: 2px solid var(--border);
   border-spacing: 0;
   border-radius: 10px;
   background: rgba(13, 16, 21, 0.38);
+  border-collapse: collapse;
 }
 
 th,
 td {
   padding: 0.85rem 1rem;
   text-align: left;
-  border-bottom: 1px solid rgba(121, 137, 160, 0.18);
 }
 
 th {
@@ -247,10 +365,12 @@ th {
 }
 
 tbody tr {
+  height: 4.01rem;
   transition: background 150ms ease;
+  border-bottom: 2px solid var(--border);
 }
 
-tbody tr:hover {
+tbody tr:not(.add-player-row):hover {
   background: rgba(120, 169, 216, 0.075);
 }
 
@@ -267,9 +387,15 @@ td:nth-child(2),
 td:nth-child(3) {
   color: var(--accent-strong);
   font-variant-numeric: tabular-nums;
+  /* padding-right: 3rem; */
+}
+
+td:last-child {
+  width:15%
 }
 
 .chips-input {
+  padding: 0 0 0 0.55rem;
   width: 110px;
   color: var(--accent-strong);
   font-weight: 650;
@@ -289,6 +415,19 @@ td:nth-child(3) {
 .button-container button {
   flex: 1 0 0;
   min-height: 2.55rem;
+}
+
+.add-player-row td {
+  text-align: center;
+  /* padding: 10px; */
+}
+
+#add-player-btn {
+  width: 65%;
+  padding-top: 0.1rem;
+  padding-bottom: 0.1rem;
+  font-size: 1.5em;
+  /* transition: background-color 0.2s ease; */
 }
 
 .message {
@@ -413,7 +552,7 @@ body[data-theme="light"] input::placeholder {
 }
 
 body[data-theme="light"] button {
-  color: var(--text);
+  /* color: var(--text); */
   border-color: var(--border);
   background: var(--panel-soft);
   box-shadow: 0 2px 0 rgba(47, 61, 77, 0.08);
@@ -424,24 +563,25 @@ body[data-theme="light"] button:hover:not(:disabled) {
   background: #e3ebf3;
 }
 
-/* body[data-theme="light"] #toggleChipsButton,
-body[data-theme="light"] #toggleMessageButton {
-  border-color: rgba(71, 124, 174, 0.48);
-  color: var(--accent-strong);
-  background: var(--accent-dark);
-} */
-
-body[data-theme="light"] #playerActionButton,
-body[data-theme="light"] #borrowButton {
+body[data-theme="light"] .blue-btn {
   color: #ffffff;
   border-color: rgba(49, 95, 139, 0.6);
   background: var(--accent);
 }
 
-body[data-theme="light"] #playerActionButton:hover:not(:disabled),
-body[data-theme="light"] #borrowButton:hover:not(:disabled) {
+body[data-theme="light"] .blue-btn:hover:not(:disabled) {
   color: #ffffff;
   background: #396b98;
+}
+
+body[data-theme="light"] .menu-item{
+  box-shadow: none;
+  background: transparent;
+}
+
+body[data-theme="light"] .table-menu {
+  border-color: var(--border);
+  background: #ffffff;
 }
 
 body[data-theme="light"] table {
@@ -458,7 +598,7 @@ body[data-theme="light"] td {
   border-bottom-color: rgba(94, 111, 132, 0.18);
 }
 
-body[data-theme="light"] tbody tr:hover {
+body[data-theme="light"] tbody tr:not(.add-player-row):hover {
   background: rgba(71, 124, 174, 0.08);
 }
 
@@ -468,6 +608,31 @@ body[data-theme="light"] .chips-input {
 
 body[data-theme="light"] .message {
   background: rgba(71, 124, 174, 0.045);
+}
+
+body[data-theme="light"] .delete-mode-button:hover:not(:disabled) {
+  border-color: var(--danger);
+}
+
+body[data-theme="light"] .delete-mode-button.active {
+  border-color: rgba(179, 71, 71, 0.55);
+  color: #b34747;
+  background: rgba(179, 71, 71, 0.12);
+}
+
+body[data-theme="light"] .delete-mode-button.active:hover:not(:disabled) {
+  border-color: var(--danger);
+  background: rgba(179, 71, 71, 0.2);
+}
+
+body[data-theme="light"] .row-delete-btn {
+  border-color: rgba(179, 71, 71, 0.45);
+  background: #fff5f5;
+}
+
+body[data-theme="light"] .row-delete-btn:hover:not(:disabled) {
+  border-color: var(--danger);
+  background: rgba(179, 71, 71, 0.14);
 }
 
 body[data-theme="light"] .theme-toggle {
@@ -490,3 +655,55 @@ body[data-theme="light"] .theme-toggle {
 .theme-toggle:hover:not(:disabled) {
   transform: translateY(-1px);
 }
+
+/*
+  Add-player modal.
+  .modal-overlay is a fixed full-viewport dim layer (blocks clicks behind
+  it); each .modal is a separate fixed element centred on the screen,
+  shown/hidden together with the overlay via .hidden.
+*/
+.modal-overlay {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  /* display: flex;
+  align-items: center;
+  justify-content: center; */
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(1px);
+}
+
+.modal {
+  position: fixed;
+  z-index: 101;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(22rem, calc(100vw - 2.5rem));
+  padding: 1.35rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: linear-gradient(145deg, rgba(31, 37, 47, 0.98), rgba(22, 27, 35, 0.98));
+  box-shadow: var(--shadow);
+}
+
+.modal h2 {
+  margin: 0 0 1rem;
+}
+
+.modal input {
+  width: 100%;
+}
+
+.modal-error {
+  margin: 0.55rem 0 0;
+  color: var(--danger);
+  font-size: 0.85rem;
+}
+
+body[data-theme="light"] .modal {
+  border-color: var(--border);
+  background: #ffffff;
+}
+
+

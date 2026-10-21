@@ -27,34 +27,50 @@ let undoStack = [];
 let redoStack = [];
 
 let chipsVisible = false;
+let deleteMode = false;
 let showAllMessages = false;
 let restoringHistory = false;
 let resetConfirm = false;
-let confirmTimeoutSeconds = 3 // 3 seconds to confirm reset
+let confirmTimeoutSeconds = 3; // 3 seconds to confirm reset
+let confirmInterval = null;
 
 const themeToggleButton = document.getElementById('themeToggleButton');
 
 const tableBody = document.getElementById('playersTableBody');
 const totalChipsHeader = document.getElementById('totalChipsHeader');
 const toggleChipsButton = document.getElementById('toggleChipsButton');
+const deleteBtnHeader = document.getElementById('deleteBtnHeader');
+const tableMenuButton = document.getElementById('tableMenuButton');
+const tableMenu = document.getElementById('tableMenu');
+const deleteModeButton = document.getElementById('deleteModeButton');
+const messageMenuButton = document.getElementById('messageMenuButton');
+const messageMenu = document.getElementById('messageMenu');
 const message = document.getElementById('message');
 
 const toggleMessageButton = document.getElementById('toggleMessageButton');
+const clearMessageButton = document.getElementById('clearMessageButton');
 const resetButton = document.getElementById('resetButton');
 const undoButton = document.getElementById('undoButton');
 const redoButton = document.getElementById('redoButton');
 
-const playerAction = document.getElementById('playerAction');
-const playerNameInput = document.getElementById('playerNameInput');
-const removePlayerSelect = document.getElementById('removePlayerSelect');
-const playerActionButton = document.getElementById('playerActionButton');
+// const playerAction = document.getElementById('playerAction');
+// const playerNameInput = document.getElementById('playerNameInput');
+// const removePlayerSelect = document.getElementById('removePlayerSelect');
+// const playerActionButton = document.getElementById('playerActionButton');
 
 const borrowerSelect = document.getElementById('borrowerSelect');
 const lenderSelect = document.getElementById('lenderSelect');
 const borrowButton = document.getElementById('borrowButton');
 
+const dimmedOverlay = document.getElementById('dimmedOverlay');
+const addPlayerModal = document.getElementById('addPlayerModal');
+const modalPlayerNameInput = document.getElementById('modalPlayerNameInput');
+const modalPlayerError = document.getElementById('modalPlayerError');
+const modalAddButton = document.getElementById('modalAddButton');
+
 /* Message (History) */
 function renderMessages() {
+  toggleMessageButton.disabled = messages.length <= 3;
   const visibleMessages = showAllMessages
     ? messages
     : messages.slice(-3); // Show only the last 3 messages when collapsed.
@@ -205,10 +221,35 @@ function updateHistoryButtons() {
   redoButton.disabled = redoStack.length === 0;
 }
 
+// Add the "Add Player" button row at the end of the table.
+function createPlayerbtn() {
+  if (deleteMode) return; // The "+" row is hidden in delete mode.
+
+  const addPlayerRow = document.createElement('tr');
+  addPlayerRow.className = 'add-player-row';
+
+  const addPlayerCell = document.createElement('td');
+  addPlayerCell.colSpan = chipsVisible ? 4 : 3;
+
+  const addButton = document.createElement('button');
+  addButton.type = 'button';
+  addButton.className = 'blue-btn';
+  addButton.id = 'add-player-btn';
+  addButton.textContent = '+';
+
+  // Open the add-player modal (input + Cancel/Add) centred on the screen.
+  addButton.addEventListener('click', openAddPlayerModal);
+
+  addPlayerCell.appendChild(addButton);
+  addPlayerRow.appendChild(addPlayerCell);
+  tableBody.appendChild(addPlayerRow);
+}
+
 // Updates the player table based on the current players and chips visibility.
 function renderTable() {
   tableBody.innerHTML = '';
   totalChipsHeader.classList.toggle('hidden', !chipsVisible);
+  // deleteBtnHeader.classList.toggle('hidden', !deleteMode);
 
   players.forEach(player => {
     const row = document.createElement('tr');
@@ -222,12 +263,15 @@ function renderTable() {
     const chipsCell = document.createElement('td');
     chipsCell.classList.toggle('hidden', !chipsVisible);
 
+    const deleteCell = document.createElement('td');
+    deleteCell.className = 'delete-cell';
+
     if (chipsVisible) {
       const chipsInput = document.createElement('input');
       chipsInput.className = 'chips-input';
       chipsInput.type = 'number';
       chipsInput.min = '0';
-      chipsInput.step = '1';
+      chipsInput.step = '50';
       chipsInput.value = player.total_chips;
       chipsInput.setAttribute('aria-label', `total chips for ${player.name}`);
 
@@ -249,23 +293,37 @@ function renderTable() {
       chipsCell.appendChild(chipsInput);
     }
 
-    row.append(nameCell, stackCell, chipsCell);
+    row.append(nameCell, stackCell, chipsCell, deleteCell);
+
+    if (deleteMode) {
+      const deleteButton = document.createElement('button');
+      deleteButton.type = 'button';
+      deleteButton.className = 'row-delete-btn';
+      deleteButton.textContent = '\u00d7';
+      deleteButton.setAttribute('aria-label', `Remove ${player.name}`);
+      deleteButton.addEventListener('click', () => removePlayer(player.name));
+
+      deleteCell.appendChild(deleteButton);
+      row.appendChild(deleteCell);
+    }
+
     tableBody.appendChild(row);
   });
+  createPlayerbtn();
 }
 
 // Updates the player selection dropdowns based on the current players.
 function renderPlayerControls() {
-  const currentRemovalValue = removePlayerSelect.value;
+  // const currentRemovalValue = removePlayerSelect.value;
   const currentBorrowerValue = borrowerSelect.value;
   const currentLenderValue = lenderSelect.value;
 
-  removePlayerSelect.innerHTML = '';
+  // removePlayerSelect.innerHTML = '';
   borrowerSelect.innerHTML = '';
   lenderSelect.innerHTML = '';
 
   players.forEach(player => {
-    removePlayerSelect.add(new Option(player.name, player.name));
+    // removePlayerSelect.add(new Option(player.name, player.name));
     borrowerSelect.add(new Option(player.name, player.name));
     lenderSelect.add(new Option(player.name, player.name));
   });
@@ -273,9 +331,9 @@ function renderPlayerControls() {
   // The bank is available only as a lender, never as a borrower.
   lenderSelect.add(new Option('bank', 'bank'));
 
-  if (players.some(player => player.name === currentRemovalValue)) {
-    removePlayerSelect.value = currentRemovalValue;
-  }
+  // if (players.some(player => player.name === currentRemovalValue)) {
+  //   removePlayerSelect.value = currentRemovalValue;
+  // }
   if (players.some(player => player.name === currentBorrowerValue)) {
     borrowerSelect.value = currentBorrowerValue;
   }
@@ -284,20 +342,20 @@ function renderPlayerControls() {
   }
 
   const noPlayers = players.length === 0;
-  removePlayerSelect.disabled = noPlayers;
+  // removePlayerSelect.disabled = noPlayers;
   borrowerSelect.disabled = noPlayers;
   lenderSelect.disabled = noPlayers;
   borrowButton.disabled = noPlayers;
-  playerActionButton.disabled = playerAction.value === 'removal' && noPlayers;
+  // playerActionButton.disabled = playerAction.value === 'removal' && noPlayers;
 }
 
 // Updates the visibility of the player name input and removal dropdown based on the selected action.
-function updateActionFields() {
-  const isAddMode = playerAction.value === 'add';
-  playerNameInput.classList.toggle('hidden', !isAddMode);
-  removePlayerSelect.classList.toggle('hidden', isAddMode);
-  playerNameInput.required = isAddMode;
-}
+// function updateActionFields() {
+//   const isAddMode = playerAction.value === 'add';
+//   playerNameInput.classList.toggle('hidden', !isAddMode);
+//   removePlayerSelect.classList.toggle('hidden', isAddMode);
+//   playerNameInput.required = isAddMode;
+// }
 
 // Renders the player table and dropdowns. (Called after any change to the players array.)
 function render() {
@@ -336,14 +394,145 @@ function toggleTheme() {
 
 function toggleChipsVisibility() {
   chipsVisible = !chipsVisible;
-  toggleChipsButton.textContent = chipsVisible
-    ? 'Hide total chips'
-    : 'Show total chips';
+  toggleChipsButton.classList.toggle('checked', chipsVisible);
+  renderTable();
+}
+
+/* Delete mode: the bin button toggles a red-themed mode in which every
+   player row shows a "×" delete button in its last column. No per-row
+   confirmation — Undo is the safety net. */
+function updateDeleteModeButton() {
+  deleteModeButton.classList.toggle('active', deleteMode);
+  deleteModeButton.setAttribute('aria-label', deleteMode ? 'Exit delete mode' : 'Enter delete mode');
+}
+
+function toggleDeleteMode() {
+  deleteMode = !deleteMode;
+  updateDeleteModeButton();
   renderTable();
 }
 
 themeToggleButton.addEventListener('click', toggleTheme);
 toggleChipsButton.addEventListener('click', toggleChipsVisibility);
+deleteModeButton.addEventListener('click', toggleDeleteMode);
+
+/* Kebab ("meatballs") dropdown in the Players toolbar. */
+function closeTableMenu(currentButtonId = null) {
+  tableMenu.classList.toggle('hidden', currentButtonId !== 'tableMenuButton');
+  messageMenu.classList.toggle('hidden', currentButtonId !== 'messageMenuButton');
+}
+
+tableMenuButton.addEventListener('click', event => {
+  event.stopPropagation();
+  const willOpen = tableMenu.classList.contains('hidden');
+  closeTableMenu('tableMenuButton');
+  tableMenu.classList.toggle('hidden', !willOpen);
+  // tableMenu.hidden = !tableMenu.hidden;
+});
+
+messageMenuButton.addEventListener('click', event => {
+  event.stopPropagation();
+  const willOpen = messageMenu.classList.contains('hidden');
+  closeTableMenu('messageMenuButton');
+  messageMenu.classList.toggle('hidden', !willOpen);
+  // messageMenu.hidden = !messageMenu.hidden;
+});
+
+// Close the menu when clicking anywhere outside it.
+document.addEventListener('click', event => {
+  const isInsideTableMenu = tableMenu.contains(event.target);
+  const isInsideMessageMenu = messageMenu.contains(event.target);
+  if (!isInsideTableMenu && !isInsideMessageMenu) {
+    closeTableMenu();
+  }
+});
+
+function clickedMenuItem(e) {
+  const item = e.target.closest('.menu-item');
+  if (item) {
+    closeTableMenu();
+  }
+}
+
+// Close the menu after any menu item is used.
+tableMenu.addEventListener('click', clickedMenuItem);
+messageMenu.addEventListener('click', clickedMenuItem);
+
+/* Add-player modal (opened by the "+" row at the bottom of the table).
+   The dimmed overlay wraps the popup, so toggling .hidden on the overlay
+   shows/hides both together. */
+
+function showModalError(text) {
+  modalPlayerError.textContent = text;
+  modalPlayerError.classList.toggle('hidden', !text);
+}
+
+// Returns true when the player was added, false on validation failure.
+function addPlayer(name) {
+  if (!name) {
+    showModalError('Please enter a player name.');
+    return false;
+  }
+  if (findPlayer(name)) {
+    showModalError('A player with that name already exists.');
+    return false;
+  }
+
+  saveStateForUndo();
+  players.push(new Player(name));
+  showMessage(`Added ${name} with stack 1.`, true);
+  saveGameState(); // Save the current state to localForage
+  render();
+  return true;
+}
+
+function openAddPlayerModal() {
+  modalPlayerNameInput.value = '';
+  showModalError('');
+  dimmedOverlay.classList.remove('hidden');
+  addPlayerModal.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeAddPlayerModal() {
+  dimmedOverlay.classList.add('hidden');
+  addPlayerModal.classList.add('hidden');
+  document.body.style.overflow = '';
+  showModalError('');
+}
+
+function submitAddPlayerModal() {
+  const name = modalPlayerNameInput.value.trim();
+
+  if (addPlayer(name)) {
+    closeAddPlayerModal();
+  }
+}
+
+modalAddButton.addEventListener('click', submitAddPlayerModal);
+
+// Enter in the input confirms the add.
+modalPlayerNameInput.addEventListener('keydown', event => {
+  if (event.key === 'Enter') {
+    submitAddPlayerModal();
+  }
+});
+
+// Clicking the dimmed overlay (but not the popup) closes the modal.
+dimmedOverlay.addEventListener('click', event => {
+  if (event.target === dimmedOverlay) {
+    closeAddPlayerModal();
+  }
+});
+
+// Escape closes all things.
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape') {
+    closeTableMenu();
+    closeAddPlayerModal();
+    if (deleteMode) toggleDeleteMode();
+  }
+});
 
 toggleMessageButton.addEventListener('click', () => {
   showAllMessages = !showAllMessages;
@@ -352,6 +541,15 @@ toggleMessageButton.addEventListener('click', () => {
     : 'Show All';
    renderMessages();
 });
+
+function resetMessages() {
+  messages.length = 0;
+  renderMessages();
+  showMessage('All messages have been cleared.', true);
+  saveGameState(); // Save the current state to localForage
+}
+
+clearMessageButton.addEventListener('click', resetMessages);
 
 function resetButtonText() {
   clearInterval(confirmInterval);
@@ -367,7 +565,6 @@ resetButton.addEventListener('click', () => {
     resetGameState(); // Clear the saved state from localForage
     players.length = 0;
     showMessage('Game has been reset.', true);
-    render();
   } else {
     // First click: switch to confirmation state
     let timeout = confirmTimeoutSeconds
@@ -388,48 +585,40 @@ resetButton.addEventListener('click', () => {
 undoButton.addEventListener('click', undo);
 redoButton.addEventListener('click', redo);
 
-playerAction.addEventListener('change', () => {
-  updateActionFields();
-  renderPlayerControls();
-});
+// playerAction.addEventListener('change', () => {
+  // updateActionFields();
+  // renderPlayerControls();
+// });
 
-playerActionButton.addEventListener('click', () => {
-  if (playerAction.value === 'add') {
-    const name = playerNameInput.value.trim();
+// Removes a player by name (shared by the table's "×" buttons and the
+// player-management form).
+function removePlayer(name) {
+  // const index = players.findIndex(player => player.name === name);
+  // if (index === -1) {
+  //   showMessage('Please choose a player to remove.');
+  //   return;
+  // }
 
-    if (!name) {
-      showMessage('Please enter a player name.');
-      return;
-    }
-    if (findPlayer(name)) {
-      showMessage('A player with that name already exists.');
-      return;
-    }
-
-    saveStateForUndo();
-    players.push(new Player(name));
-    playerNameInput.value = '';
-    showMessage(`Added ${name} with stack 1.`, true);
-    saveGameState(); // Save the current state to localForage
-  } 
-  else 
-  {
-    const name = removePlayerSelect.value;
-    const index = players.findIndex(player => player.name === name);
-
-    if (index === -1) {
-      showMessage('Please choose a player to remove.');
-      return;
-    }
-
-    saveStateForUndo();
-    players.splice(index, 1);
-    showMessage(`Removed ${name}.`, true);
-    saveGameState(); // Save the current state to localForage
-  }
-
+  saveStateForUndo();
+  players.splice(index, 1);
+  showMessage(`Removed ${name}.`, true);
+  saveGameState(); // Save the current state to localForage
   render();
-});
+}
+
+// playerActionButton.addEventListener('click', () => {
+  // if (playerAction.value === 'add') {
+  //   const name = playerNameInput.value.trim();
+
+  //   if (addPlayer(name)) {
+  //     playerNameInput.value = '';
+  //   }
+  // } 
+  // else 
+//   if (playerAction.value === 'removal') {
+//     removePlayer(removePlayerSelect.value);
+//   }
+// });
 
 borrowButton.addEventListener('click', () => {
   const borrower = findPlayer(borrowerSelect.value);
@@ -480,7 +669,7 @@ function initialize() {
   updateThemeToggleButton();
   renderMessages();
   updateHistoryButtons();
-  updateActionFields();
+  // updateActionFields();
   render();
 }
 
