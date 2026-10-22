@@ -593,7 +593,7 @@ redoButton.addEventListener('click', redo);
 // Removes a player by name (shared by the table's "×" buttons and the
 // player-management form).
 function removePlayer(name) {
-  // const index = players.findIndex(player => player.name === name);
+  const index = players.findIndex(player => player.name === name);
   // if (index === -1) {
   //   showMessage('Please choose a player to remove.');
   //   return;
